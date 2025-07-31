@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🚚 Truck QR Code Entry System with Chatbot</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f6f8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+      gap: 40px;
+    }
+
+    h1 {
+      color: #333;
+    }
+
+    .card {
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+    }
+
+    input[type="file"],
+    textarea {
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      width: 100%;
+      margin-bottom: 20px;
+      font-family: inherit;
+      font-size: 1rem;
+      resize: vertical;
+    }
+
+    button {
+      padding: 12px 20px;
+      margin: 5px;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      font-family: inherit;
+      font-weight: 600;
+    }
+
+    button.entry {
+      background-color: #007bff;
+      color: white;
+    }
+
+    button.entry:hover {
+      background-color: #0056b3;
+    }
+
+    button.exit {
+      background-color: #28a745;
+      color: white;
+    }
+
+    button.exit:hover {
+      background-color: #1e7e34;
+    }
+
+    button.chat-send {
+      background-color: #f39c12;
+      color: white;
+      margin-top: 0;
+      width: 100%;
+    }
+
+    button.chat-send:hover {
+      background-color: #d78e0c;
+    }
+
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 1.1rem;
+      white-space: pre-wrap;
+    }
+
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    .failure {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+
+    .icon {
+      font-size: 1.3rem;
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🚚 Truck Parking Access</h1>
+
+  <div class="card">
+    <form id="upload-form" enctype="multipart/form-data">
+      <input type="file" id="image" name="image" accept="image/*" required />
+
+      <div>
+        <button type="button" class="entry" onclick="submitAction('entry')">🚪 Submit Entry</button>
+        <button type="button" class="exit" onclick="submitAction('exit')">🚗 Submit Exit</button>
+      </div>
+    </form>
+
+    <div id="result" class="result" style="display:none;"></div>
+  </div>
+
+  <div class="card">
+    <label for="chat-input">💬 Chat with Assistant</label>
+    <textarea id="chat-input" rows="4" placeholder="Ask about QR codes, help, or instructions..."></textarea>
+    <button class="chat-send" onclick="sendChat()">Send Message</button>
+    <div id="chat-response" class="result" style="display:none;"></div>
+  </div>
+
+  <script>
+    async function submitAction(action) {
+      const fileInput = document.getElementById('image');
+      const resultDiv = document.getElementById('result');
+      resultDiv.style.display = 'none';
+      resultDiv.className = 'result';
+
+      if (!fileInput.files.length) {
+        alert("Please upload an image first.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/${action}/`, {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+
+        resultDiv.style.display = 'block';
+
+        if (data.status === "entry_granted" || data.status === "exit_granted") {
+          resultDiv.textContent = `✅ SUCCESSFUL: ${data.code}`;
+          resultDiv.classList.add("success");
+        } else if (data.status === "entry_denied" || data.status === "exit_denied") {
+          resultDiv.textContent = `❌ UNSUCCESSFUL: ${data.code}`;
+          resultDiv.classList.add("failure");
+        } else {
+          resultDiv.textContent = `⚠️ ${data.detail || "No valid QR found."}`;
+          resultDiv.classList.add("failure");
+        }
+
+      } catch (error) {
+        resultDiv.style.display = 'block';
+        resultDiv.classList.add("failure");
+        resultDiv.textContent = `❌ ERROR: ${error.message}`;
+      }
+    }
+
+    async function sendChat() {
+      const input = document.getElementById('chat-input').value.trim();
+      const chatResponse = document.getElementById('chat-response');
+      chatResponse.style.display = "none";
+      chatResponse.textContent = "";
+
+      if (!input) {
+        alert("Please enter a message.");
+        return;
+      }
+
+      chatResponse.style.display = "block";
+      chatResponse.textContent = "Typing...";
+
+      try {
+        const response = await fetch("http://127.0.0.1:8000/chat/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: input })
+        });
+
+        const data = await response.json();
+
+        if (data.response) {
+          chatResponse.textContent = data.response;
+        } else {
+          chatResponse.textContent = "No response from chatbot.";
+        }
+      } catch (error) {
+        chatResponse.textContent = "Error communicating with chatbot.";
+      }
+    }
+  </script>
+
+</body>
+</html>
